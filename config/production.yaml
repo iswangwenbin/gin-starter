@@ -12,6 +12,3 @@ database:
   user: root
   password: ""
   name: gin_starter_prod
-  charset: utf8mb4
-  parseTime: "true"
-  loc: "Asia/Shanghai"

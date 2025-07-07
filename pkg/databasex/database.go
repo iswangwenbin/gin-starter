@@ -110,9 +110,6 @@ func NewDB() *gorm.DB {
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-
-	log.Printf("Database connected: %s", config.String())
-
 	return db
 }
 

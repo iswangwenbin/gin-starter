@@ -11,8 +11,8 @@ var redisConnection *redis.Client
 
 func NewRedis() *redis.Client {
 	ctx := context.Background()
-	addr := viper.GetString("Redis.addr")
-	password := viper.GetString("Redis.password")
+	addr := viper.GetString("redis.addr")
+	password := viper.GetString("redis.password")
 	redisConnection := redis.NewClient(
 		&redis.Options{
 			Addr:     addr,

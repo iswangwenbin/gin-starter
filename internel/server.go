@@ -58,12 +58,16 @@ func NewServer(env string, options ...Option) (*Server, error) {
 			return nil, err
 		}
 
-		// 日志
-		if s.startDebug {
+		// 日志初始化
+		if env == "production" {
 			s.logger, _ = zap.NewProduction()
 		} else {
 			s.logger, _ = zap.NewDevelopment()
 		}
+
+		// 设置全局logger，这样zap.S()才能正常工作
+		zap.ReplaceGlobals(s.logger)
+
 		s.Engine.Use(ginzap.Ginzap(s.logger, time.RFC3339, true))
 		s.Engine.Use(ginzap.RecoveryWithZap(s.logger, true))
 	}
@@ -71,13 +75,13 @@ func NewServer(env string, options ...Option) (*Server, error) {
 	// Database
 	if s.startDatabase {
 		s.DB = databasex.NewDB()
-		zap.S().Log(zap.InfoLevel, "Database Enable")
+		s.logger.Info("Database Enable")
 	}
 
 	// Cache
 	if s.startCache {
 		s.Cache = redisx.GetRedis()
-		log.Println("Redis Cache Enable")
+		s.logger.Info("Redis Cache Enable")
 	}
 	return s, nil
 }
@@ -111,7 +115,7 @@ func (s *Server) listen() {
 	// kill -9 is syscall.SIGKILL but can't be caught, so don't need to add it
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	log.Println("Shutdown Server ...")
+	s.logger.Info("Shutdown Server ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -120,5 +124,5 @@ func (s *Server) listen() {
 		log.Fatal("Server Shutdown:", err)
 	}
 
-	log.Println("Server exiting")
+	s.logger.Info("Server exiting")
 }
