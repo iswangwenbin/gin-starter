@@ -1,0 +1,52 @@
+# Go 编译生成的二进制文件
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# 覆盖率工具和测试输出
+*.out
+*.prof
+
+# cgo 生成的文件
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+# 依赖目录（如需忽略 vendor 目录，取消注释）
+# vendor/
+
+# Go workspace 文件
+go.work
+
+# 编辑器和 IDE 相关
+.idea/
+.vscode/
+*.sublime*
+*.iml
+*.ipr
+*.iws
+
+# 日志和数据库文件
+*.log
+*.sqlite
+*.db
+
+# 系统生成文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+tmp/
+.tmp/
+out/
+output/
+__debug_bin
+
+# 前端工具链（如有前端代码）
+node_modules/
+.sass-cache/
