@@ -1,0 +1,21 @@
+services:
+  db:
+    image: mysql:latest               # 使用官方MySQL镜像
+    container_name: mysql             # 容器名称（可选）
+    restart: always                   # 容器异常自动重启
+    ports:
+      - "3306:3306"                   # 映射宿主机3306端口到容器
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456     # 设置root密码，必填
+      MYSQL_DATABASE: instat        # 容器启动时自动创建数据库（可选）
+    volumes:
+      - ./mysql_data:/var/lib/mysql         # 持久化数据到宿主机目录
+  redis:
+    image: redis:latest
+    container_name: redis_container
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_data:/data
+    command: redis-server --appendonly yes

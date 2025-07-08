@@ -5,6 +5,7 @@
 *.so
 *.dylib
 *.test
+gin-starter
 
 # 覆盖率工具和测试输出
 *.out
