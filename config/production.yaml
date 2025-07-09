@@ -1,14 +1,60 @@
 server:
   host: 0.0.0.0
-  port: 8080
-
-log:
-  level: info
-  file: logs/server.log
+  port: "8080"
+  mode: release
+  read_timeout: 30s
+  write_timeout: 30s
+  max_header_bytes: 1048576
 
 database:
   host: localhost
   port: 3306
   user: root
-  password: ""
+  password: "222222"
   name: gin_starter_prod
+  charset: utf8mb4
+  parseTime: true
+  loc: Asia/Shanghai
+  max_idle_conns: 20
+  max_open_conns: 200
+  conn_max_lifetime: 3600s
+
+redis:
+  host: localhost
+  port: 6379
+  password: "${REDIS_PASSWORD}"
+  db: 0
+  pool_size: 20
+
+log:
+  level: info
+  file: logs/server.log
+  max_size: 100
+  max_backups: 10
+  max_age: 30
+  compress: true
+
+jwt:
+  secret: "${JWT_SECRET}"
+  expires: 2h
+  refresh_ttl: 24h
+
+cors:
+  allowed_origins:
+    - "${FRONTEND_URL}"
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  allowed_headers:
+    - Content-Type
+    - Authorization
+    - X-Requested-With
+  allow_credentials: true
+
+rate_limit:
+  requests: 100
+  window: 1m
+  enabled: true

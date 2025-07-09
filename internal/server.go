@@ -11,11 +11,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/iswangwenbin/gin-starter/internal/middleware"
+	"github.com/iswangwenbin/gin-starter/pkg/configx"
 	"github.com/iswangwenbin/gin-starter/pkg/databasex"
 	"github.com/iswangwenbin/gin-starter/pkg/redisx"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
-	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )
 
@@ -52,7 +53,7 @@ func NewServer(env string, options ...Option) (*Server, error) {
 			gin.SetMode(gin.DebugMode)
 		}
 
-		s.Engine = gin.Default()
+		s.Engine = gin.New()
 		err := s.Engine.SetTrustedProxies([]string{"127.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8"})
 		if err != nil {
 			return nil, err
@@ -68,8 +69,17 @@ func NewServer(env string, options ...Option) (*Server, error) {
 		// 设置全局logger，这样zap.S()才能正常工作
 		zap.ReplaceGlobals(s.logger)
 
+		// 添加中间件
+		s.Engine.Use(middleware.RequestID())
+		s.Engine.Use(middleware.Security())
+		s.Engine.Use(middleware.HidePoweredBy())
+		s.Engine.Use(middleware.CORS())
 		s.Engine.Use(ginzap.Ginzap(s.logger, time.RFC3339, true))
-		s.Engine.Use(ginzap.RecoveryWithZap(s.logger, true))
+		s.Engine.Use(middleware.ErrorHandler(s.logger))
+		
+		// 设置404和405处理
+		s.Engine.NoRoute(middleware.NotFoundHandler())
+		s.Engine.NoMethod(middleware.MethodNotAllowedHandler())
 	}
 
 	// Database
@@ -95,10 +105,17 @@ func (s *Server) Start() {
 
 // 监听端口
 func (s *Server) listen() {
-	port := viper.GetString("server.port")
+	cfg := configx.GetConfig()
+	if cfg == nil {
+		log.Fatal("Config not loaded")
+	}
+	
 	srv := &http.Server{
-		Addr:    ":" + port,
-		Handler: s.Engine,
+		Addr:           cfg.GetServerAddress(),
+		Handler:        s.Engine,
+		ReadTimeout:    cfg.Server.ReadTimeout,
+		WriteTimeout:   cfg.Server.WriteTimeout,
+		MaxHeaderBytes: cfg.Server.MaxHeaderBytes,
 	}
 	// 在一个 goroutine 中启动服务器，这样它就不会阻塞下面的优雅关机处理
 	go func() {

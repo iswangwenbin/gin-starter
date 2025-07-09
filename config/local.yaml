@@ -1,31 +1,63 @@
 server:
-  host: 0.0.0.0 # 监听地址，0.0.0.0 表示所有网卡都可访问
-  port: 9000 # 监听端口，服务启动后会占用此端口
+  host: 0.0.0.0
+  port: "9000"
+  mode: debug
+  read_timeout: 60s
+  write_timeout: 60s
+  max_header_bytes: 1048576
+
+database:
+  host: localhost
+  port: 3306
+  user: root
+  password: 123456
+  name: instat
+  charset: utf8mb4
+  parseTime: true
+  loc: Asia/Shanghai
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600s
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 10
 
 log:
-  level: info # 日志级别，可选：debug、info、warn、error
-  file: logs/server.log # 日志文件路径，日志将输出到此文件
+  level: debug
+  file: logs/server.log
+  max_size: 100
+  max_backups: 5
+  max_age: 30
+  compress: true
+
+jwt:
+  secret: "development-secret-key-change-in-production"
+  expires: 24h
+  refresh_ttl: 168h
 
 cors:
   allowed_origins:
-    - "https://example.com" # 允许跨域的来源（域名或地址）
-    - "http://localhost:9000" # 本地开发环境允许的来源
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+    - "http://127.0.0.1:3000"
+    - "http://127.0.0.1:8080"
   allowed_methods:
-    - GET # 允许的 HTTP 方法
+    - GET
     - POST
     - PUT
     - DELETE
+    - OPTIONS
   allowed_headers:
-    - Content-Type # 允许的请求头
+    - Content-Type
     - Authorization
-  allow_credentials: true # 是否允许携带认证信息（如 Cookie）
+    - X-Requested-With
+  allow_credentials: true
 
-database:
-  host: localhost # 数据库主机地址
-  port: 3306 # 数据库端口
-  user: root # 数据库用户名
-  password: 123456 # 数据库密码
-  name: instat # 数据库名称
-  charset: utf8mb4 # 数据库字符集
-  parseTime: true # 是否解析时间
-  loc: Asia/Shanghai # 时区
+rate_limit:
+  requests: 1000
+  window: 1m
+  enabled: true

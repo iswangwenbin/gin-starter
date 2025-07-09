@@ -2,34 +2,61 @@ package redisx
 
 import (
 	"context"
-	"github.com/redis/go-redis/v9"
-	"github.com/spf13/viper"
 	"log"
+	"time"
+
+	"github.com/iswangwenbin/gin-starter/pkg/configx"
+	"github.com/redis/go-redis/v9"
 )
 
-var redisConnection *redis.Client
+var redisClient *redis.Client
 
 func NewRedis() *redis.Client {
-	ctx := context.Background()
-	addr := viper.GetString("redis.addr")
-	password := viper.GetString("redis.password")
-	redisConnection := redis.NewClient(
-		&redis.Options{
-			Addr:     addr,
-			Password: password,
-			DB:       0,
-		})
-	_, err := redisConnection.Ping(ctx).Result()
-	if err != nil {
-		log.Fatalf("NewRedis.error:%v", err)
-		return nil
+	cfg := configx.GetConfig()
+	if cfg == nil {
+		log.Fatal("Config not loaded")
 	}
-	return redisConnection
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:         cfg.GetRedisAddress(),
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.DB,
+		PoolSize:     cfg.Redis.PoolSize,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		DialTimeout:  10 * time.Second,
+	})
+
+	// 测试连接
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+
+	redisClient = rdb
+	return rdb
 }
 
 func GetRedis() *redis.Client {
-	if redisConnection == nil {
-		redisConnection = NewRedis()
+	if redisClient == nil {
+		redisClient = NewRedis()
 	}
-	return redisConnection
+	return redisClient
+}
+
+func CloseRedis() error {
+	if redisClient != nil {
+		return redisClient.Close()
+	}
+	return nil
+}
+
+func GetStats() *redis.PoolStats {
+	if redisClient != nil {
+		return redisClient.PoolStats()
+	}
+	return nil
 }
