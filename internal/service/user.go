@@ -1,35 +1,45 @@
 package service
 
 import (
-	stderrors "errors"
 	"time"
 
 	"github.com/iswangwenbin/gin-starter/internal/model"
+	"github.com/iswangwenbin/gin-starter/internal/repository"
 	"github.com/iswangwenbin/gin-starter/pkg/errorsx"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type UserService struct {
 	*BaseService
+	userRepo repository.UserRepository
 }
 
 func NewUserService(base *BaseService) *UserService {
 	return &UserService{
 		BaseService: base,
+		userRepo:    base.Repo.UserRepository(),
 	}
 }
 
 func (us *UserService) Create(req *model.CreateUserRequest) (*model.User, error) {
+	ctx := us.Ctx
+
 	// 检查用户名是否已存在
-	var existingUser model.User
-	if err := us.DB.Where("username = ?", req.Username).First(&existingUser).Error; err == nil {
+	exists, err := us.userRepo.ExistsByUsername(ctx, req.Username)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
 		return nil, errorsx.ErrUserAlreadyExists
 	}
 
 	// 检查邮箱是否已存在
-	if err := us.DB.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+	exists, err = us.userRepo.ExistsByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
 		return nil, errorsx.New(errorsx.CodeUserAlreadyExists, "Email already exists")
 	}
 
@@ -48,40 +58,34 @@ func (us *UserService) Create(req *model.CreateUserRequest) (*model.User, error)
 		Status:   1,
 	}
 
-	if err := us.DB.Create(user).Error; err != nil {
-		return nil, errorsx.NewWithError(errorsx.CodeDatabaseError, "Failed to create user", err)
+	if err := us.userRepo.Create(ctx, user); err != nil {
+		return nil, err
 	}
 
 	return user, nil
 }
 
 func (us *UserService) GetByID(id uint) (*model.User, error) {
-	var user model.User
-	if err := us.DB.First(&user, id).Error; err != nil {
-		return nil, err
-	}
-	return &user, nil
+	ctx := us.Ctx
+	return us.userRepo.GetByID(ctx, id)
 }
 
 func (us *UserService) GetByUsername(username string) (*model.User, error) {
-	var user model.User
-	if err := us.DB.Where("username = ?", username).First(&user).Error; err != nil {
-		return nil, err
-	}
-	return &user, nil
+	ctx := us.Ctx
+	return us.userRepo.GetByUsername(ctx, username)
 }
 
 func (us *UserService) GetByEmail(email string) (*model.User, error) {
-	var user model.User
-	if err := us.DB.Where("email = ?", email).First(&user).Error; err != nil {
-		return nil, err
-	}
-	return &user, nil
+	ctx := us.Ctx
+	return us.userRepo.GetByEmail(ctx, email)
 }
 
 func (us *UserService) Update(id uint, req *model.UpdateUserRequest) (*model.User, error) {
-	var user model.User
-	if err := us.DB.First(&user, id).Error; err != nil {
+	ctx := us.Ctx
+
+	// 获取用户
+	user, err := us.userRepo.GetByID(ctx, id)
+	if err != nil {
 		return nil, err
 	}
 
@@ -96,56 +100,33 @@ func (us *UserService) Update(id uint, req *model.UpdateUserRequest) (*model.Use
 		user.Phone = req.Phone
 	}
 
-	if err := us.DB.Save(&user).Error; err != nil {
+	if err := us.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 func (us *UserService) Delete(id uint) error {
-	return us.DB.Delete(&model.User{}, id).Error
+	ctx := us.Ctx
+	return us.userRepo.Delete(ctx, id)
 }
 
 func (us *UserService) List(req *model.UserListRequest) ([]*model.User, int64, error) {
-	var users []*model.User
-	var total int64
-
-	query := us.DB.Model(&model.User{})
-
-	// 添加过滤条件
-	if req.Username != "" {
-		query = query.Where("username LIKE ?", "%"+req.Username+"%")
-	}
-	if req.Email != "" {
-		query = query.Where("email LIKE ?", "%"+req.Email+"%")
-	}
-	if req.Status != nil {
-		query = query.Where("status = ?", *req.Status)
-	}
-
-	// 获取总数
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
-	// 分页查询
-	if err := query.Offset(req.GetOffset()).Limit(req.GetLimit()).Find(&users).Error; err != nil {
-		return nil, 0, err
-	}
-
-	return users, total, nil
+	ctx := us.Ctx
+	return us.userRepo.List(ctx, req)
 }
 
 func (us *UserService) Login(req *model.LoginRequest) (*model.User, error) {
-	var user model.User
-	
+	ctx := us.Ctx
+
 	// 可以用用户名或邮箱登录
-	if err := us.DB.Where("username = ? OR email = ?", req.Username, req.Username).First(&user).Error; err != nil {
-		if stderrors.Is(err, gorm.ErrRecordNotFound) {
+	user, err := us.userRepo.GetByUsernameOrEmail(ctx, req.Username)
+	if err != nil {
+		if errorsx.IsCode(err, errorsx.CodeUserNotFound) {
 			return nil, errorsx.ErrInvalidCredentials
 		}
-		return nil, errorsx.NewWithError(errorsx.CodeDatabaseError, "Database error", err)
+		return nil, err
 	}
 
 	// 验证密码
@@ -162,23 +143,23 @@ func (us *UserService) Login(req *model.LoginRequest) (*model.User, error) {
 	now := time.Now()
 	user.LastLoginAt = &now
 	user.LoginCount++
-	
-	if err := us.DB.Save(&user).Error; err != nil {
-		us.Logger.Error("failed to update login info", 
-			zap.Uint("user_id", user.ID),
+
+	if err := us.userRepo.Update(ctx, user); err != nil {
+		us.Logger.Error("failed to update login info",
+			zap.Uint64("user_id", user.ID),
 			zap.Error(err))
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 func (us *UserService) ChangePassword(id uint, oldPassword, newPassword string) error {
-	var user model.User
-	if err := us.DB.First(&user, id).Error; err != nil {
-		if stderrors.Is(err, gorm.ErrRecordNotFound) {
-			return errorsx.ErrUserNotFound
-		}
-		return errorsx.NewWithError(errorsx.CodeDatabaseError, "Database error", err)
+	ctx := us.Ctx
+
+	// 获取用户
+	user, err := us.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
 	}
 
 	// 验证旧密码
@@ -193,9 +174,9 @@ func (us *UserService) ChangePassword(id uint, oldPassword, newPassword string) 
 	}
 
 	user.Password = string(hashedPassword)
-	if err := us.DB.Save(&user).Error; err != nil {
-		return errorsx.NewWithError(errorsx.CodeDatabaseError, "Failed to update password", err)
+	if err := us.userRepo.Update(ctx, user); err != nil {
+		return err
 	}
-	
+
 	return nil
 }

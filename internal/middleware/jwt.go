@@ -12,12 +12,12 @@ import (
 )
 
 type Claims struct {
-	UserID   uint   `json:"user_id"`
+	UserID   uint64 `json:"user_id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID uint, username string) (string, error) {
+func GenerateToken(userID uint64, username string) (string, error) {
 	cfg := configx.GetConfig()
 	if cfg == nil {
 		return "", errors.New("config not loaded")

@@ -78,6 +78,11 @@ func Is(err error, code ErrorCode) bool {
 	return false
 }
 
+// IsCode 检查错误是否为指定的错误代码（别名方法）
+func IsCode(err error, code ErrorCode) bool {
+	return Is(err, code)
+}
+
 // GetCode 获取错误代码
 func GetCode(err error) ErrorCode {
 	var appErr *AppError

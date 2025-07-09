@@ -8,15 +8,25 @@ import (
 
 type User struct {
 	BaseModel
-	Username    string         `json:"username" gorm:"uniqueIndex;not null"`
-	Email       string         `json:"email" gorm:"uniqueIndex;not null"`
-	Password    string         `json:"-" gorm:"not null"`
-	Name        string         `json:"name"`
-	Avatar      string         `json:"avatar"`
-	Phone       string         `json:"phone"`
-	Status      int            `json:"status" gorm:"default:1"` // 1:活跃 0:禁用
-	LastLoginAt *time.Time     `json:"last_login_at"`
-	LoginCount  int            `json:"login_count" gorm:"default:0"`
+	Username    string     `json:"username" gorm:"uniqueIndex;not null"`
+	Email       string     `json:"email" gorm:"uniqueIndex;not null"`
+	Password    string     `json:"-" gorm:"not null"`
+	Name        string     `json:"name"`
+	Avatar      string     `json:"avatar"`
+	Phone       string     `json:"phone"`
+	Status      int        `json:"status" gorm:"default:1"` // 1:活跃 0:禁用
+	LastLoginAt *time.Time `json:"last_login_at"`
+	LoginCount  int        `json:"login_count" gorm:"default:0"`
+}
+
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	// 这里可以添加创建前的处理逻辑
+	return nil
+}
+
+func (u *User) BeforeUpdate(tx *gorm.DB) error {
+	// 这里可以添加更新前的处理逻辑
+	return nil
 }
 
 type CreateUserRequest struct {
@@ -48,14 +58,4 @@ type UserListRequest struct {
 	Username string `form:"username,omitempty"`
 	Email    string `form:"email,omitempty"`
 	Status   *int   `form:"status,omitempty"`
-}
-
-func (u *User) BeforeCreate(tx *gorm.DB) error {
-	// 这里可以添加创建前的处理逻辑
-	return nil
-}
-
-func (u *User) BeforeUpdate(tx *gorm.DB) error {
-	// 这里可以添加更新前的处理逻辑
-	return nil
 }

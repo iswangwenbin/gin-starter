@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/iswangwenbin/gin-starter/internal/middleware"
 	"github.com/iswangwenbin/gin-starter/internal/model"
+	"github.com/iswangwenbin/gin-starter/internal/repository"
 	"github.com/iswangwenbin/gin-starter/internal/service"
 	"github.com/iswangwenbin/gin-starter/pkg/errorsx"
 )
@@ -16,7 +17,8 @@ type UserController struct {
 }
 
 func NewUserController(base *BaseController) *UserController {
-	baseService := service.NewBaseService(base.DB, base.Cache, base.Logger)
+	repo := repository.NewRepository(base.DB)
+	baseService := service.NewBaseService(repo, base.Cache, base.Logger)
 	return &UserController{
 		BaseController: base,
 		userService:    service.NewUserService(baseService),
