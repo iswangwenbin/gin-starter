@@ -27,7 +27,8 @@ func NewUserController(base *BaseController) *UserController {
 
 func (uc *UserController) Create(c *gin.Context) {
 	var req model.CreateUserRequest
-	if err := BindAndValidate(c, &req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, err.Error())
 		return
 	}
 
@@ -66,7 +67,8 @@ func (uc *UserController) Update(c *gin.Context) {
 	}
 
 	var req model.UpdateUserRequest
-	if err := BindAndValidate(c, &req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, err.Error())
 		return
 	}
 
@@ -97,7 +99,8 @@ func (uc *UserController) Delete(c *gin.Context) {
 
 func (uc *UserController) List(c *gin.Context) {
 	var req model.UserListRequest
-	if err := BindQueryAndValidate(c, &req); err != nil {
+	if err := c.ShouldBindQuery(&req); err != nil {
+		BadRequest(c, err.Error())
 		return
 	}
 
@@ -120,7 +123,8 @@ func (uc *UserController) List(c *gin.Context) {
 
 func (uc *UserController) Login(c *gin.Context) {
 	var req model.LoginRequest
-	if err := BindAndValidate(c, &req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, err.Error())
 		return
 	}
 
@@ -169,7 +173,8 @@ func (uc *UserController) UpdateProfile(c *gin.Context) {
 	}
 
 	var req model.UpdateUserRequest
-	if err := BindAndValidate(c, &req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, err.Error())
 		return
 	}
 
@@ -195,7 +200,8 @@ func (uc *UserController) ChangePassword(c *gin.Context) {
 	}
 
 	var req ChangePasswordRequest
-	if err := BindAndValidate(c, &req); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
+		BadRequest(c, err.Error())
 		return
 	}
 

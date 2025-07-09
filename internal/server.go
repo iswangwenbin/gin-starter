@@ -2,15 +2,21 @@ package internal
 
 import (
 	"context"
-	ginzap "github.com/gin-contrib/zap"
-	"go.uber.org/zap"
+	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/iswangwenbin/gin-starter/pkg/clickhousex"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
+	ginzap "github.com/gin-contrib/zap"
+	"go.uber.org/zap"
+
 	"github.com/gin-gonic/gin"
+	"github.com/iswangwenbin/gin-starter/internal/grpc/server"
 	"github.com/iswangwenbin/gin-starter/internal/middleware"
 	"github.com/iswangwenbin/gin-starter/pkg/configx"
 	"github.com/iswangwenbin/gin-starter/pkg/databasex"
@@ -21,21 +27,24 @@ import (
 )
 
 type Server struct {
-	Engine      *gin.Engine   // 框架
-	DB          *gorm.DB      // 数据库
-	Cache       *redis.Client // Redis
-	Environment string        // 运行环境
-	logger      *zap.Logger   // 日志
+	Engine      *gin.Engine     // HTTP 框架
+	GRPCServer  *server.Server  // gRPC 服务器
+	DB          *gorm.DB        // 数据库
+	Cache       *redis.Client   // Redis
+	ClickHouse  clickhouse.Conn // ClickHouse
+	Environment string          // 运行环境
+	logger      *zap.Logger     // 日志
 
-	startPProf    bool // 是否初始化PProf
-	startDatabase bool // 是否初始化数据库
-	startDebug    bool // 是否初始化调试模式
-	startCache    bool // 是否初始化Redis
+	startPProf      bool // 是否初始化PProf
+	startDatabase   bool // 是否初始化数据库
+	startDebug      bool // 是否初始化调试模式
+	startCache      bool // 是否初始化Redis
+	startGRPC       bool // 是否启动gRPC服务器
+	startClickHouse bool // 是否初始化ClickHouse
 }
 
 func NewServer(env string, options ...Option) (*Server, error) {
-	s := &Server{}
-	s.Environment = env
+	s := &Server{Environment: env}
 
 	for _, option := range options {
 		if err := option(s); err != nil {
@@ -43,57 +52,84 @@ func NewServer(env string, options ...Option) (*Server, error) {
 		}
 	}
 
-	// Engine
-	if s.Engine == nil {
-		switch env {
-		case "production":
-			gin.DisableConsoleColor()
-			gin.SetMode(gin.ReleaseMode)
-		default:
-			gin.SetMode(gin.DebugMode)
-		}
-
-		s.Engine = gin.New()
-		err := s.Engine.SetTrustedProxies([]string{"127.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8"})
-		if err != nil {
-			return nil, err
-		}
-
-		// 日志初始化
-		if env == "production" {
-			s.logger, _ = zap.NewProduction()
-		} else {
-			s.logger, _ = zap.NewDevelopment()
-		}
-
-		// 设置全局logger，这样zap.S()才能正常工作
-		zap.ReplaceGlobals(s.logger)
-
-		// 添加中间件
-		s.Engine.Use(middleware.RequestID())
-		s.Engine.Use(middleware.Security())
-		s.Engine.Use(middleware.HidePoweredBy())
-		s.Engine.Use(middleware.CORS())
-		s.Engine.Use(ginzap.Ginzap(s.logger, time.RFC3339, true))
-		s.Engine.Use(middleware.ErrorHandler(s.logger))
-		
-		// 设置404和405处理
-		s.Engine.NoRoute(middleware.NotFoundHandler())
-		s.Engine.NoMethod(middleware.MethodNotAllowedHandler())
+	if err := s.initEngine(env); err != nil {
+		return nil, err
 	}
 
-	// Database
+	s.initComponents()
+
+	return s, nil
+}
+
+func (s *Server) initEngine(env string) error {
+	if s.Engine != nil {
+		return nil
+	}
+
+	switch env {
+	case "production":
+		gin.DisableConsoleColor()
+		gin.SetMode(gin.ReleaseMode)
+	default:
+		gin.SetMode(gin.DebugMode)
+	}
+
+	s.Engine = gin.New()
+	err := s.Engine.SetTrustedProxies([]string{"127.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12", "10.0.0.0/8"})
+	if err != nil {
+		return err
+	}
+
+	s.initLogger(env)
+	s.setupMiddleware()
+
+	return nil
+}
+
+func (s *Server) initLogger(env string) {
+	if env == "production" {
+		s.logger, _ = zap.NewProduction()
+	} else {
+		s.logger, _ = zap.NewDevelopment()
+	}
+	zap.ReplaceGlobals(s.logger)
+}
+
+func (s *Server) setupMiddleware() {
+	s.Engine.Use(middleware.RequestID())
+	s.Engine.Use(middleware.Security())
+	s.Engine.Use(middleware.HidePoweredBy())
+	s.Engine.Use(middleware.CORS())
+	s.Engine.Use(ginzap.Ginzap(s.logger, time.RFC3339, true))
+	s.Engine.Use(middleware.ErrorHandler(s.logger))
+
+	s.Engine.NoRoute(middleware.NotFoundHandler())
+	s.Engine.NoMethod(middleware.MethodNotAllowedHandler())
+}
+
+func (s *Server) initComponents() {
 	if s.startDatabase {
 		s.DB = databasex.NewDB()
 		s.logger.Info("Database Enable")
 	}
 
-	// Cache
 	if s.startCache {
 		s.Cache = redisx.GetRedis()
 		s.logger.Info("Redis Cache Enable")
 	}
-	return s, nil
+
+	if s.startClickHouse {
+		s.ClickHouse = clickhousex.NewClickHouse()
+		s.logger.Info("ClickHouse Enable")
+	}
+
+	if s.startGRPC {
+		cfg := configx.GetConfig()
+		if cfg != nil && cfg.GRPC.Enabled {
+			s.GRPCServer = server.NewServer(cfg, s.logger, s.DB, s.Cache)
+			s.logger.Info("gRPC Server Enable")
+		}
+	}
 }
 
 func (s *Server) Start() {
@@ -109,37 +145,90 @@ func (s *Server) listen() {
 	if cfg == nil {
 		log.Fatal("Config not loaded")
 	}
-	
-	srv := &http.Server{
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	httpSrv := s.startHTTPServer(cfg, &wg)
+	s.startGRPCServer(ctx, &wg)
+
+	s.logServerStatus(cfg)
+	s.handleShutdown(cancel, httpSrv, &wg)
+}
+
+func (s *Server) startHTTPServer(cfg *configx.Config, wg *sync.WaitGroup) *http.Server {
+	httpSrv := &http.Server{
 		Addr:           cfg.GetServerAddress(),
 		Handler:        s.Engine,
 		ReadTimeout:    cfg.Server.ReadTimeout,
 		WriteTimeout:   cfg.Server.WriteTimeout,
 		MaxHeaderBytes: cfg.Server.MaxHeaderBytes,
 	}
-	// 在一个 goroutine 中启动服务器，这样它就不会阻塞下面的优雅关机处理
+
+	wg.Add(1)
 	go func() {
-		// 服务连接
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("listen: %s\n", err)
+		defer wg.Done()
+		s.logger.Info("HTTP server starting", zap.String("address", httpSrv.Addr))
+
+		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Error("HTTP server error", zap.Error(err))
 		}
 	}()
 
-	// 等待中断信号以优雅地关闭服务器（设置 5 秒的超时时间）
-	quit := make(chan os.Signal, 1)
-	// kill (no param) default send syscall.SIGTERM
-	// kill -2 is syscall.SIGINT
-	// kill -9 is syscall.SIGKILL but can't be caught, so don't need to add it
-	signal.Notify(quit, os.Interrupt)
-	<-quit
-	s.logger.Info("Shutdown Server ...")
+	return httpSrv
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server Shutdown:", err)
+func (s *Server) startGRPCServer(ctx context.Context, wg *sync.WaitGroup) {
+	if s.GRPCServer == nil {
+		return
 	}
 
-	s.logger.Info("Server exiting")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := s.GRPCServer.Start(ctx); err != nil {
+			s.logger.Error("gRPC server error", zap.Error(err))
+		}
+	}()
+}
+
+func (s *Server) logServerStatus(cfg *configx.Config) {
+	s.logger.Info("Servers started successfully",
+		zap.String("http_address", cfg.GetServerAddress()),
+		zap.String("grpc_address", cfg.GetGRPCAddress()),
+		zap.Bool("grpc_enabled", cfg.GRPC.Enabled && s.GRPCServer != nil),
+	)
+}
+
+func (s *Server) handleShutdown(cancel context.CancelFunc, httpSrv *http.Server, wg *sync.WaitGroup) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit
+	s.logger.Info("Received shutdown signal, gracefully shutting down...")
+
+	cancel()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
+		s.logger.Error("HTTP server shutdown error", zap.Error(err))
+	} else {
+		s.logger.Info("HTTP server shut down successfully")
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		s.logger.Info("All servers shut down successfully")
+	case <-time.After(30 * time.Second):
+		s.logger.Warn("Shutdown timeout, forcing exit")
+	}
 }

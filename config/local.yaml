@@ -61,3 +61,9 @@ rate_limit:
   requests: 1000
   window: 1m
   enabled: true
+
+grpc:
+  port: 9090
+  enabled: true
+
+debug: true

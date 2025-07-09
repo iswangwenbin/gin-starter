@@ -47,6 +47,7 @@ tmp/
 out/
 output/
 __debug_bin
+bin/
 
 # 前端工具链（如有前端代码）
 node_modules/

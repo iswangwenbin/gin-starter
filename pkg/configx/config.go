@@ -9,13 +9,16 @@ import (
 )
 
 type Config struct {
-	Server    ServerConfig    `mapstructure:"server"`
-	Database  DatabaseConfig  `mapstructure:"database"`
-	Redis     RedisConfig     `mapstructure:"redis"`
-	Log       LogConfig       `mapstructure:"log"`
-	JWT       JWTConfig       `mapstructure:"jwt"`
-	CORS      CORSConfig      `mapstructure:"cors"`
-	RateLimit RateLimitConfig `mapstructure:"rate_limit"`
+	Server     ServerConfig     `mapstructure:"server"`
+	Database   DatabaseConfig   `mapstructure:"database"`
+	Redis      RedisConfig      `mapstructure:"redis"`
+	Log        LogConfig        `mapstructure:"log"`
+	JWT        JWTConfig        `mapstructure:"jwt"`
+	CORS       CORSConfig       `mapstructure:"cors"`
+	RateLimit  RateLimitConfig  `mapstructure:"rate_limit"`
+	ClickHouse ClickHouseConfig `mapstructure:"clickhouse"`
+	GRPC       GRPCConfig       `mapstructure:"grpc"`
+	Debug      bool             `mapstructure:"debug"`
 }
 
 type ServerConfig struct {
@@ -75,6 +78,21 @@ type RateLimitConfig struct {
 	Requests int           `mapstructure:"requests"`
 	Window   time.Duration `mapstructure:"window"`
 	Enabled  bool          `mapstructure:"enabled"`
+}
+
+// ClickHouse 配置
+// 新增
+
+type ClickHouseConfig struct {
+	Addr     string `mapstructure:"addr"`
+	Database string `mapstructure:"database"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+}
+
+type GRPCConfig struct {
+	Port    int  `mapstructure:"port"`
+	Enabled bool `mapstructure:"enabled"`
 }
 
 var GlobalConfig *Config
@@ -150,9 +168,9 @@ func setDefaults(v *viper.Viper) {
 	// Log defaults
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.file", "logs/app.log")
-	v.SetDefault("log.max_size", 100)     // MB
+	v.SetDefault("log.max_size", 100) // MB
 	v.SetDefault("log.max_backups", 5)
-	v.SetDefault("log.max_age", 30)       // days
+	v.SetDefault("log.max_age", 30) // days
 	v.SetDefault("log.compress", true)
 
 	// JWT defaults
@@ -170,6 +188,19 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("rate_limit.requests", 100)
 	v.SetDefault("rate_limit.window", "1m")
 	v.SetDefault("rate_limit.enabled", false)
+
+	// ClickHouse defaults
+	v.SetDefault("clickhouse.addr", "127.0.0.1:9000")
+	v.SetDefault("clickhouse.database", "default")
+	v.SetDefault("clickhouse.user", "default")
+	v.SetDefault("clickhouse.password", "")
+
+	// gRPC defaults
+	v.SetDefault("grpc.port", 9090)
+	v.SetDefault("grpc.enabled", true)
+
+	// Debug defaults
+	v.SetDefault("debug", false)
 }
 
 func GetConfig() *Config {
@@ -181,20 +212,16 @@ func (c *Config) GetServerAddress() string {
 }
 
 func (c *Config) GetDatabaseDSN() string {
-	// 处理密码为空的情况
-
-	fmt.Printf("c.Database: %+v\n", c.Database)
-
 	var auth string
 	if c.Database.Password == "" {
 		auth = c.Database.User
 	} else {
 		auth = fmt.Sprintf("%s:%s", c.Database.User, c.Database.Password)
 	}
-	
+
 	// URL 编码 loc 参数
 	encodedLoc := url.QueryEscape(c.Database.Loc)
-	
+
 	return fmt.Sprintf("%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s",
 		auth,
 		c.Database.Host,
@@ -208,4 +235,8 @@ func (c *Config) GetDatabaseDSN() string {
 
 func (c *Config) GetRedisAddress() string {
 	return fmt.Sprintf("%s:%d", c.Redis.Host, c.Redis.Port)
+}
+
+func (c *Config) GetGRPCAddress() string {
+	return fmt.Sprintf(":%d", c.GRPC.Port)
 }

@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package common;
+
+option go_package = "github.com/iswangwenbin/gin-starter/internal/grpc/protobuf";
+
+// 通用错误响应
+message ErrorResponse {
+  int32 code = 1;
+  string message = 2;
+  string details = 3;
+}
+
+// 通用成功响应
+message SuccessResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 分页信息
+message PaginationInfo {
+  int32 page = 1;
+  int32 size = 2;
+  int64 total = 3;
+  int32 total_pages = 4;
+}
+
+// 健康检查请求
+message HealthCheckRequest {
+  string service = 1;
+}
+
+// 健康检查响应
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  ServingStatus status = 1;
+  string message = 2;
+}
+
+// 健康检查服务
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}

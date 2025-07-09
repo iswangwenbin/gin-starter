@@ -124,11 +124,18 @@ install-tools: ## 安装开发工具
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@go install github.com/swaggo/swag/cmd/swag@latest
 	@go install github.com/google/wire/cmd/wire@latest
+	@go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
 .PHONY: generate
 generate: ## 生成代码
 	@echo "Generating code..."
 	@go generate ./...
+
+.PHONY: proto
+proto: ## 生成 protobuf 代码
+	@echo "Generating protobuf code..."
+	@./scripts/generate-proto.sh
 
 .PHONY: swagger
 swagger: ## 生成 Swagger 文档
