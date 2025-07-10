@@ -51,11 +51,10 @@ Examples:
 			log.Fatalf("Failed to create server: %v", err)
 		}
 
-		// 启动服务器依赖（Redis、ClickHouse）
-		if err := server.Start(); err != nil {
-			log.Fatalf("Failed to start server dependencies: %v", err)
+		// 初始化服务器依赖（Redis、ClickHouse）
+		if err := server.InitDependencies(); err != nil {
+			log.Fatalf("Failed to initialize server dependencies: %v", err)
 		}
-		defer server.Stop()
 
 		// 创建 Worker
 		installEventWorker := worker.NewInstallEventWorker(

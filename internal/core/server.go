@@ -139,6 +139,12 @@ func (s *Server) Logger() *zap.Logger {
 }
 
 
+// InitDependencies 初始化依赖（不启动 HTTP 服务器）
+func (s *Server) InitDependencies() error {
+	s.logger.Info("Initializing server dependencies...")
+	return nil
+}
+
 // Start 启动服务器
 func (s *Server) Start() error {
 
