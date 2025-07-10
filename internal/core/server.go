@@ -27,13 +27,13 @@ import (
 )
 
 type Server struct {
-	Engine           *gin.Engine                   // HTTP 框架
-	GRPCServer       *server.Server                // gRPC 服务器
-	DB               *gorm.DB                      // 数据库
-	Cache            *redis.Client                 // Redis
-	ClickHouse       clickhouse.Conn               // ClickHouse
-	Environment      string                        // 运行环境
-	logger           *zap.Logger                   // 日志
+	Engine      *gin.Engine     // HTTP 框架
+	GRPCServer  *server.Server  // gRPC 服务器
+	DB          *gorm.DB        // 数据库
+	Cache       *redis.Client   // Redis
+	ClickHouse  clickhouse.Conn // ClickHouse
+	Environment string          // 运行环境
+	logger      *zap.Logger     // 日志
 
 	startPProf      bool // 是否初始化PProf
 	startDatabase   bool // 是否初始化数据库
@@ -138,21 +138,22 @@ func (s *Server) Logger() *zap.Logger {
 	return s.logger
 }
 
+
 // Start 启动服务器
 func (s *Server) Start() error {
 
 	// 路由
-	s.routes()
-	
+	s.setupRoutes()
+
 	// 监听端口（阻塞）
 	s.listen()
-	
+
 	return nil
 }
 
 // Stop 停止服务器
 func (s *Server) Stop() error {
-	
+
 	s.logger.Info("Server stopped")
 	return nil
 }
@@ -225,7 +226,6 @@ func (s *Server) handleShutdown(cancel context.CancelFunc, httpSrv *http.Server,
 
 	<-quit
 	s.logger.Info("Received shutdown signal, gracefully shutting down...")
-
 
 	cancel()
 

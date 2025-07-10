@@ -5,7 +5,8 @@ import (
 	"github.com/iswangwenbin/gin-starter/internal/middleware"
 )
 
-func (s *Server) routes() {
+// setupRoutes 设置路由
+func (s *Server) setupRoutes() {
 	// 静态文件路由
 	s.Engine.Static("/static", "./public/static")
 	s.Engine.Static("/terms", "./public/terms")

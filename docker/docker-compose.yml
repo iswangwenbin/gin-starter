@@ -10,6 +10,7 @@ services:
       MYSQL_DATABASE: instat # 容器启动时自动创建数据库（可选）
     volumes:
       - ./data/mysql_data:/var/lib/mysql # 持久化数据到宿主机目录
+
   redis:
     image: redis:latest
     container_name: redis_container
