@@ -4,14 +4,12 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-	"github.com/fsnotify/fsnotify"
 	"log"
 	"os"
 	"path/filepath"
 
+	"github.com/iswangwenbin/gin-starter/pkg/configx"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -38,61 +36,35 @@ func Execute() {
 	}
 }
 
-func init() {
+// GlobalConfig 全局配置变量
+var GlobalConfig *configx.Config
 
+func init() {
 	rootCmd.PersistentFlags().StringP("config", "c", "config/local.yaml", "config file (default is config/local.yaml)")
-	rootCmd.PersistentFlags().StringP("env", "e", "", "Set the environment.")
+	rootCmd.PersistentFlags().StringP("env", "e", "local", "Set the environment.")
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Debug mode")
 
-	cobra.OnInitialize(func() {
-		// 获取命令行参数
-		configPath, _ := rootCmd.PersistentFlags().GetString("config")
-		envValue, _ := rootCmd.PersistentFlags().GetString("env")
-		configDir := filepath.Dir(configPath)
-		initConfig(envValue, configDir)
-	})
+	// 在每个命令执行前加载配置
+	cobra.OnInitialize(initConfig)
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig(env, path string) {
-	var name string
-	// 优先使用环境变量 APP_ENV
-	confDir := os.Getenv("APP_ENV")
-	if confDir != "" {
-		path = confDir
-	}
-	if path == "" {
-		exePath, _ := os.Executable()
-		path = filepath.Dir(exePath) + "/config"
-	}
-	// 根据环境选择配置文件名
-	switch env {
-	case "production":
-		name = "production"
-	case "development":
-		name = "development"
-	default:
-		if _, err := os.Stat(path + "/local.yaml"); err == nil {
-			name = "local"
-		} else {
-			name = "development"
-		}
+// initConfig 加载配置文件
+func initConfig() {
+	// 获取环境参数
+	env, _ := rootCmd.PersistentFlags().GetString("env")
+	if env == "" {
+		env = "local"
 	}
 
-	viper.AddConfigPath(path)
-	viper.SetConfigName(name)
-	viper.SetConfigType("yaml")
-	viper.AutomaticEnv()
+	// 构建配置文件路径
+	configPath := filepath.Join("config", env+".yaml")
 
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Config file error: %v", err)
-	} else {
-		fmt.Printf("Using config file: %s\n", viper.ConfigFileUsed())
+	// 加载配置
+	cfg, err := configx.Load(configPath)
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// 配置热重载及回调
-	viper.WatchConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		log.Printf("Config file changed: %s", e.Name)
-	})
+	// 设置全局配置
+	GlobalConfig = cfg
 }

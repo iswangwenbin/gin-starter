@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package protobuf;
+option go_package = "github.com/iswangwenbin/gin-starter/internal/grpc/protobuf";
+
+import "google/protobuf/timestamp.proto";
+
+// 安装事件服务
+service InstallEventService {
+  // 创建单个安装事件
+  rpc CreateInstallEvent(CreateInstallEventRequest) returns (CreateInstallEventResponse);
+  
+  // 批量创建安装事件
+  rpc CreateInstallEventBatch(CreateInstallEventBatchRequest) returns (CreateInstallEventBatchResponse);
+}
+
+// 创建安装事件请求
+message CreateInstallEventRequest {
+  string app_id = 1;
+  string app_name = 2;
+  string app_version = 3;
+  uint32 app_type = 4;
+  string event_id = 5;
+  google.protobuf.Timestamp event_time = 6;
+  string device_id = 7;
+  string channel_id = 8;
+  string install_ip = 9;
+  uint32 install_type = 10;
+  uint32 install_result = 11;
+  string os_language = 12;
+  string os_timezone = 13;
+  string os_name = 14;
+  string os_version = 15;
+  string os_build = 16;
+  string os_family = 17;
+  uint32 signature_status = 18;
+  string signature_version = 19;
+  map<string, string> signature_params = 20;
+}
+
+// 创建安装事件响应
+message CreateInstallEventResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 批量创建安装事件请求
+message CreateInstallEventBatchRequest {
+  repeated CreateInstallEventRequest events = 1;
+}
+
+// 批量创建安装事件响应
+message CreateInstallEventBatchResponse {
+  bool success = 1;
+  string message = 2;
+  int32 processed_count = 3;
+}

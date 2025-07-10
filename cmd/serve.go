@@ -1,16 +1,10 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
 	"fmt"
 	"log"
-	"path/filepath"
 
-	"github.com/iswangwenbin/gin-starter/internal"
-	"github.com/iswangwenbin/gin-starter/pkg/configx"
+	"github.com/iswangwenbin/gin-starter/internal/core"
 	"github.com/spf13/cobra"
 )
 
@@ -27,38 +21,38 @@ Examples:
   gin-starter serve --debug            # Start with debug enabled`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		// 获取环境参数
-		debug, _ := cmd.Flags().GetBool("debug")
-		env, _ := cmd.Flags().GetString("env")
-		if env == "" {
-			env = "development"
-		}
+		// 获取环境参数（使用全局标志）
+		debug, _ := cmd.Parent().PersistentFlags().GetBool("debug")
+		env, _ := cmd.Parent().PersistentFlags().GetString("env")
 
-		// 加载配置文件
-		configPath := filepath.Join("config", env+".yaml")
-		cfg, err := configx.Load(configPath)
-		if err != nil {
-			log.Fatalf("Failed to load config: %v", err)
+		// 使用全局配置（已在 root.go 中加载）
+		cfg := GlobalConfig
+		if cfg == nil {
+			log.Fatalf("Global config not loaded")
 		}
 
 		// 选择服务器选项
-		options := internal.WithDefaults()
+		options := core.WithDefaults()
 		if debug {
-			options = internal.WithDebug()
+			options = core.WithDebug()
 		}
 
-		server, err := internal.NewServer(env, options...)
+		// 创建服务器
+		server, err := core.NewServer(env, options...)
 		if err != nil {
 			log.Fatalf("Failed to create server: %v", err)
 		}
 
+		// 创建生命周期管理器并运行
+		lifecycle := core.NewLifecycle(server)
 		fmt.Printf("Starting server in %s mode on %s...\n", env, cfg.GetServerAddress())
-		server.Start()
+
+		if err := lifecycle.Run(); err != nil {
+			log.Fatalf("Server failed: %v", err)
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
-	serveCmd.Flags().String("env", "development", "Environment (development, production, local)")
-	serveCmd.Flags().Bool("debug", false, "Enable debug mode")
 }

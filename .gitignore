@@ -52,3 +52,6 @@ bin/
 # 前端工具链（如有前端代码）
 node_modules/
 .sass-cache/
+
+# docker
+docker/data/

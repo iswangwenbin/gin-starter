@@ -22,4 +22,5 @@ type UserRepository interface {
 // Repository 通用数据访问接口
 type Repository interface {
 	UserRepository() UserRepository
+	InstallEventRepository() InstallEventRepository
 }

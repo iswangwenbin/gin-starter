@@ -1,13 +1,16 @@
 package repository
 
 import (
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"gorm.io/gorm"
 )
 
 // RepositoryManager 数据访问层统一管理器
 type RepositoryManager struct {
-	db           *gorm.DB
-	userRepo     UserRepository
+	db                    *gorm.DB
+	ch                    clickhouse.Conn
+	userRepo              UserRepository
+	installEventRepo      InstallEventRepository
 }
 
 // NewRepository 创建 Repository 实例
@@ -18,9 +21,24 @@ func NewRepository(db *gorm.DB) *RepositoryManager {
 	}
 }
 
+// NewRepositoryWithClickHouse 创建包含 ClickHouse 的 Repository 实例
+func NewRepositoryWithClickHouse(db *gorm.DB, ch clickhouse.Conn) *RepositoryManager {
+	return &RepositoryManager{
+		db:               db,
+		ch:               ch,
+		userRepo:         NewUserRepository(db),
+		installEventRepo: NewInstallEventRepository(ch),
+	}
+}
+
 // UserRepository 获取用户仓库
 func (r *RepositoryManager) UserRepository() UserRepository {
 	return r.userRepo
+}
+
+// InstallEventRepository 获取安装事件仓库
+func (r *RepositoryManager) InstallEventRepository() InstallEventRepository {
+	return r.installEventRepo
 }
 
 // DB 获取数据库连接（用于事务等特殊场景）
