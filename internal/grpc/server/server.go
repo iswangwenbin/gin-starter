@@ -11,7 +11,6 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/iswangwenbin/gin-starter/internal/grpc/protobuf"
-	"github.com/iswangwenbin/gin-starter/internal/repository"
 	"github.com/iswangwenbin/gin-starter/internal/service"
 	"github.com/iswangwenbin/gin-starter/pkg/configx"
 	"github.com/redis/go-redis/v9"
@@ -101,20 +100,12 @@ func (s *Server) Stop() {
 
 // registerServices 注册 gRPC 服务
 func (s *Server) registerServices() {
-	// 创建服务层依赖
-	repo := repository.NewRepository(s.db)
-	baseService := service.NewBaseService(repo, s.cache, s.logger)
-
-	// 创建用户服务
-	userService := service.NewUserService(baseService)
-	userServer := NewUserServer(userService)
-
-	// 创建健康检查服务
-	healthServer := NewHealthServer()
+	// 创建安装事件服务
+	installEventService := service.NewInstallEventService(s.cache, s.logger)
+	installEventServer := NewInstallEventServer(installEventService, s.logger)
 
 	// 注册服务
-	protobuf.RegisterUserServiceServer(s.grpcServer, userServer)
-	protobuf.RegisterHealthServiceServer(s.grpcServer, healthServer)
+	protobuf.RegisterInstallEventServiceServer(s.grpcServer, installEventServer)
 
 	s.logger.Info("gRPC services registered")
 }

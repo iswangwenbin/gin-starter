@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/iswangwenbin/gin-starter/internal/model"
@@ -27,8 +28,11 @@ func NewInstallEventService(redis *redis.Client, logger *zap.Logger) *InstallEve
 	}
 }
 
-// 创建单个安装事件 - 写入 Redis Stream
+// Create 创建单个安装事件 - 写入 Redis Stream
 func (s *InstallEventService) Create(ctx context.Context, req *model.CreateInstallEventRequest) error {
+
+	fmt.Printf("create install event request: %+v\n", req)
+
 	// 数据验证
 	if req.EventID == "" {
 		return errorsx.New(errorsx.CodeBadRequest, "EventID is required")
@@ -74,7 +78,7 @@ func (s *InstallEventService) Create(ctx context.Context, req *model.CreateInsta
 	return nil
 }
 
-// 批量创建安装事件 - 写入 Redis Stream
+// CreateBatch 批量创建安装事件 - 写入 Redis Stream
 func (s *InstallEventService) CreateBatch(ctx context.Context, requests []*model.CreateInstallEventRequest) error {
 	if len(requests) == 0 {
 		return nil

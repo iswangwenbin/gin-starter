@@ -60,7 +60,7 @@ rate_limit:
   enabled: true
 
 grpc:
-  port: 8002
+  port: 50001
   enabled: true
 
 clickhouse:
